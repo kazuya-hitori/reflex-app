@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f0f14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ریفلکس" />
+  <title>ریفلکس — تست زمان واکنش</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap');
+
+    :root {
+      --bg:        #0f0f14;
+      --surface:   #1a1a24;
+      --border:    #2a2a3a;
+      --green:     #00e676;
+      --green-dim: #00c853;
+      --red:       #ff1744;
+      --red-dim:   #d50000;
+      --text:      #e8e8f0;
+      --muted:     #6b6b88;
+      --accent:    #7c4dff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%; width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Vazirmatn', sans-serif;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    /* ===== LAYOUT ===== */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    .logo span { color: var(--accent); }
+    .stats-mini {
+      display: flex; gap: 16px;
+    }
+    .stat-pill {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .stat-pill strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ===== STIMULUS ZONE ===== */
+    #stimulus {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      margin: 12px 12px 6px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      transition: background 0.08s ease;
+      cursor: default;
+      min-height: 0;
+    }
+
+    #stimulus.idle     { background: var(--surface); }
+    #stimulus.waiting  { background: var(--surface); }
+    #stimulus.green    { background: #003300; border-color: var(--green); }
+    #stimulus.red      { background: #2b0000; border-color: var(--red); }
+    #stimulus.correct  { background: #001a00; }
+    #stimulus.wrong    { background: #1a0000; }
+
+    /* Glow pulse */
+    #stimulus.green::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at center, rgba(0,230,118,0.18) 0%, transparent 70%);
+      animation: pulse 0.6s ease-out;
+    }
+    #stimulus.red::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at center, rgba(255,23,68,0.18) 0%, transparent 70%);
+      animation: pulse 0.6s ease-out;
+    }
+    @keyframes pulse {
+      0%   { opacity: 0; transform: scale(0.6); }
+      50%  { opacity: 1; }
+      100% { opacity: 0.4; transform: scale(1.2); }
+    }
+
+    .stimulus-icon {
+      font-size: 72px;
+      line-height: 1;
+      margin-bottom: 12px;
+      transition: opacity 0.2s;
+    }
+    .stimulus-msg {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--muted);
+      text-align: center;
+      padding: 0 20px;
+      line-height: 1.6;
+    }
+    #stimulus.green .stimulus-msg,
+    #stimulus.red   .stimulus-msg { color: var(--text); font-size: 22px; font-weight: 700; }
+
+    .result-time {
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      display: none;
+    }
+    .result-label {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+      display: none;
+    }
+    .result-badge {
+      margin-top: 12px;
+      padding: 6px 18px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 700;
+      display: none;
+    }
+    .badge-correct { background: rgba(0,230,118,0.15); color: var(--green); }
+    .badge-wrong   { background: rgba(255,23,68,0.15);  color: var(--red);   }
+
+    #stimulus.correct .result-time,
+    #stimulus.correct .result-label,
+    #stimulus.correct .result-badge,
+    #stimulus.wrong   .result-time,
+    #stimulus.wrong   .result-label,
+    #stimulus.wrong   .result-badge { display: block; }
+
+    #stimulus.correct .result-time { color: var(--green); }
+    #stimulus.wrong   .result-time { color: var(--red); }
+
+    /* Early press warning */
+    .early-msg {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ff9100;
+      display: none;
+    }
+    #stimulus.early .early-msg  { display: block; }
+    #stimulus.early .stimulus-icon { display: none; }
+    #stimulus.early .stimulus-msg  { display: none; }
+
+    /* ===== BUTTONS ===== */
+    #controls {
+      display: flex;
+      gap: 10px;
+      padding: 6px 12px 14px;
+      flex-shrink: 0;
+    }
+
+    .btn-color {
+      flex: 1;
+      height: 82px;
+      border: none;
+      border-radius: 18px;
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s, opacity 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-color:active { transform: scale(0.95); }
+    .btn-color:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    #btn-green { background: linear-gradient(145deg, var(--green), var(--green-dim)); box-shadow: 0 4px 24px rgba(0,230,118,0.25); }
+    #btn-red   { background: linear-gradient(145deg, var(--red),   var(--red-dim));   box-shadow: 0 4px 24px rgba(255,23,68,0.25); }
+
+    /* ===== START BUTTON ===== */
+    #btn-start {
+      display: block;
+      width: calc(100% - 24px);
+      margin: 0 12px 0;
+      height: 56px;
+      background: var(--accent);
+      border: none;
+      border-radius: 16px;
+      color: #fff;
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.15s;
+      flex-shrink: 0;
+    }
+    #btn-start:active { transform: scale(0.97); }
+    #btn-start:disabled { opacity: 0.4; cursor: not-allowed; }
+    #btn-start.hidden { display: none; }
+
+    /* ===== HISTORY ===== */
+    #history-section {
+      flex-shrink: 0;
+      padding: 6px 12px 0;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+    #history-section::-webkit-scrollbar { width: 4px; }
+    #history-section::-webkit-scrollbar-track { background: transparent; }
+    #history-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .history-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    #history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hist-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border-radius: 10px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity:0; transform: translateY(-6px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    .hist-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .hist-dot.g { background: var(--green); }
+    .hist-dot.r { background: var(--red); }
+    .hist-num {
+      font-size: 11px; color: var(--muted); width: 20px; text-align: center;
+    }
+    .hist-ms {
+      flex: 1;
+      font-weight: 700;
+    }
+    .hist-ms.correct { color: var(--green); }
+    .hist-ms.wrong   { color: var(--red); }
+    .hist-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 100px;
+    }
+    .hist-badge.correct { background: rgba(0,230,118,0.12); color: var(--green); }
+    .hist-badge.wrong   { background: rgba(255,23,68,0.12);  color: var(--red); }
+    .hist-color-label { font-size: 11px; color: var(--muted); }
+
+    /* install banner */
+    #install-banner {
+      display: none;
+      margin: 8px 12px 0;
+      padding: 10px 14px;
+      background: rgba(124,77,255,0.12);
+      border: 1px solid rgba(124,77,255,0.3);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--text);
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    #install-banner.show { display: flex; }
+    #install-banner button {
+      margin-right: auto;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Vazirmatn', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+    #close-banner {
+      background: none !important;
+      color: var(--muted) !important;
+      padding: 0 !important;
+      font-size: 16px !important;
+    }
+
+    /* countdown ring */
+    .countdown-wrap {
+      display: none;
+      position: absolute;
+      top: 12px; right: 12px;
+    }
+    #stimulus.waiting .countdown-wrap { display: block; }
+    .countdown-ring circle {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 3;
+    }
+    .countdown-ring .arc {
+      stroke: var(--accent);
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      stroke-linecap: round;
+      transform-origin: center;
+      transform: rotate(-90deg);
+      transition: stroke-dashoffset 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">ری<span>فلکس</span></div>
+    <div class="stats-mini">
+      <div class="stat-pill">
+        <strong id="stat-avg">—</strong>
+        میانگین (ms)
+      </div>
+      <div class="stat-pill">
+        <strong id="stat-best">—</strong>
+        بهترین (ms)
+      </div>
+      <div class="stat-pill">
+        <strong id="stat-count">0</strong>
+        تست
+      </div>
+    </div>
+  </header>
+
+  <!-- INSTALL BANNER -->
+  <div id="install-banner">
+    <span>📲 نصب روی گوشی</span>
+    <button id="btn-install">نصب</button>
+    <button id="close-banner">✕</button>
+  </div>
+
+  <!-- STIMULUS -->
+  <div id="stimulus" class="idle">
+    <svg class="countdown-wrap countdown-ring" width="40" height="40" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="16"/>
+      <circle class="arc" id="arc" cx="20" cy="20" r="16"/>
+    </svg>
+
+    <div class="stimulus-icon" id="stim-icon">⚡</div>
+    <div class="stimulus-msg" id="stim-msg">آماده‌ای؟<br>دکمه شروع را بزن</div>
+    <div class="early-msg">⚠️ زود زدی! صبر کن رنگ ظاهر بشه</div>
+
+    <div class="result-time" id="result-time">0</div>
+    <div class="result-label">میلی‌ثانیه</div>
+    <div class="result-badge" id="result-badge"></div>
+  </div>
+
+  <!-- START -->
+  <button id="btn-start">▶ شروع تست</button>
+
+  <!-- COLOR BUTTONS -->
+  <div id="controls">
+    <button class="btn-color" id="btn-green" disabled>🟢 سبز</button>
+    <button class="btn-color" id="btn-red"   disabled>🔴 قرمز</button>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="history-section">
+    <div class="history-title">تاریخچه</div>
+    <div id="history-list"></div>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let state = 'idle';   // idle | waiting | active | result | early
+  let currentColor = null;
+  let startTime = 0;
+  let waitTimer = null;
+  let arcTimer = null;
+  let waitDuration = 0;
+  let arcStart = 0;
+  const results = [];
+
+  // ── DOM refs ───────────────────────────────────────────────────────────────
+  const stimulus  = document.getElementById('stimulus');
+  const stimIcon  = document.getElementById('stim-icon');
+  const stimMsg   = document.getElementById('stim-msg');
+  const resultTime  = document.getElementById('result-time');
+  const resultBadge = document.getElementById('result-badge');
+  const btnStart  = document.getElementById('btn-start');
+  const btnGreen  = document.getElementById('btn-green');
+  const btnRed    = document.getElementById('btn-red');
+  const arc       = document.getElementById('arc');
+  const histList  = document.getElementById('history-list');
+  const statAvg   = document.getElementById('stat-avg');
+  const statBest  = document.getElementById('stat-best');
+  const statCount = document.getElementById('stat-count');
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function setStimulus(cls, icon, msg) {
+    stimulus.className = cls;
+    stimIcon.textContent = icon;
+    stimMsg.textContent  = msg;
+  }
+
+  function disableColorBtns() {
+    btnGreen.disabled = true;
+    btnRed.disabled   = true;
+  }
+  function enableColorBtns() {
+    btnGreen.disabled = false;
+    btnRed.disabled   = false;
+  }
+
+  function animateArc(duration) {
+    const circumference = 100;
+    arcStart = performance.now();
+    waitDuration = duration;
+    arc.style.strokeDashoffset = circumference;
+
+    function step(now) {
+      const elapsed = now - arcStart;
+      const progress = Math.min(elapsed / duration, 1);
+      arc.style.strokeDashoffset = circumference - (circumference * progress);
+      if (progress < 1) arcTimer = requestAnimationFrame(step);
+    }
+    arcTimer = requestAnimationFrame(step);
+  }
+
+  function stopArc() {
+    if (arcTimer) cancelAnimationFrame(arcTimer);
+    arc.style.strokeDashoffset = 100;
+  }
+
+  function updateStats() {
+    const correct = results.filter(r => r.correct);
+    statCount.textContent = results.length;
+    if (correct.length === 0) { statAvg.textContent = '—'; statBest.textContent = '—'; return; }
+    const times = correct.map(r => r.ms);
+    statAvg.textContent  = Math.round(times.reduce((a,b)=>a+b,0)/times.length);
+    statBest.textContent = Math.min(...times);
+  }
+
+  function addHistory(item) {
+    const el = document.createElement('div');
+    el.className = 'hist-item';
+    const num   = results.length;
+    const color = item.stimColor === 'green' ? 'سبز' : 'قرمز';
+    const dotC  = item.stimColor === 'green' ? 'g' : 'r';
+    el.innerHTML = `
+      <div class="hist-dot ${dotC}"></div>
+      <span class="hist-num">${num}</span>
+      <span class="hist-ms ${item.correct ? 'correct' : 'wrong'}">${item.correct ? item.ms + ' ms' : '—'}</span>
+      <span class="hist-color-label">${color}</span>
+      <span class="hist-badge ${item.correct ? 'correct' : 'wrong'}">${item.correct ? '✓ درست' : '✗ غلط'}</span>
+    `;
+    histList.prepend(el);
+  }
+
+  // ── Flow ───────────────────────────────────────────────────────────────────
+  function startTest() {
+    if (state === 'waiting' || state === 'active') return;
+    state = 'waiting';
+    btnStart.disabled = true;
+    disableColorBtns();
+    setStimulus('waiting', '⏳', 'صبر کن...');
+
+    const delay = 1500 + Math.random() * 3000;
+    animateArc(delay);
+
+    waitTimer = setTimeout(() => {
+      stopArc();
+      currentColor = Math.random() < 0.5 ? 'green' : 'red';
+      const icon = currentColor === 'green' ? '🟢' : '🔴';
+      const label = currentColor === 'green' ? 'سبز!' : 'قرمز!';
+      setStimulus(currentColor, icon, label);
+      enableColorBtns();
+      state = 'active';
+      startTime = performance.now();
+    }, delay);
+  }
+
+  function handleColorPress(pressed) {
+    if (state === 'waiting') {
+      // early press
+      clearTimeout(waitTimer);
+      stopArc();
+      state = 'early';
+      stimulus.className = 'early';
+      disableColorBtns();
+      btnStart.disabled = false;
+      btnStart.textContent = '↺ دوباره';
+      setTimeout(() => {
+        if (state === 'early') {
+          setStimulus('idle', '⚡', 'آماده‌ای؟\nدکمه شروع را بزن');
+          btnStart.textContent = '▶ شروع تست';
+          state = 'idle';
+        }
+      }, 1800);
+      return;
+    }
+
+    if (state !== 'active') return;
+
+    const elapsed = Math.round(performance.now() - startTime);
+    const correct = pressed === currentColor;
+    state = 'result';
+    disableColorBtns();
+
+    stimulus.className = correct ? 'correct' : 'wrong';
+    stimIcon.textContent = '';
+    stimMsg.textContent  = '';
+
+    resultTime.textContent = elapsed;
+    resultBadge.textContent = correct ? '✓ انتخاب درست' : '✗ انتخاب غلط';
+    resultBadge.className = 'result-badge ' + (correct ? 'badge-correct' : 'badge-wrong');
+
+    const item = { ms: elapsed, correct, stimColor: currentColor, pressedColor: pressed };
+    results.push(item);
+    addHistory(item);
+    updateStats();
+
+    btnStart.disabled = false;
+    btnStart.textContent = '▶ تست بعدی';
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', startTest);
+  btnGreen.addEventListener('click', () => handleColorPress('green'));
+  btnRed.addEventListener('click',   () => handleColorPress('red'));
+
+  // Block accidental double-taps
+  document.addEventListener('dblclick', e => e.preventDefault());
+
+  // ── PWA / Install ──────────────────────────────────────────────────────────
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('install-banner').classList.add('show');
+  });
+
+  document.getElementById('btn-install').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('install-banner').classList.remove('show');
+  });
+
+  document.getElementById('close-banner').addEventListener('click', () => {
+    document.getElementById('install-banner').classList.remove('show');
+  });
+
+  // ── Service Worker ─────────────────────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+      const CACHE = 'reflex-v1';
+      self.addEventListener('install', e => {
+        e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+        self.skipWaiting();
+      });
+      self.addEventListener('activate', e => {
+        e.waitUntil(caches.keys().then(keys =>
+          Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+        ));
+      });
+      self.addEventListener('fetch', e => {
+        e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+      });
+    `;
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).catch(() => {});
+  }
+</script>
+
+<!-- PWA Manifest injected inline -->
+<script>
+  const manifest = {
+    name: "ریفلکس — تست زمان واکنش",
+    short_name: "ریفلکس",
+    start_url: "./",
+    display: "standalone",
+    background_color: "#0f0f14",
+    theme_color: "#0f0f14",
+    orientation: "portrait",
+    icons: [
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230f0f14'/%3E%3Ctext x='96' y='130' text-anchor='middle' font-size='110'%3E⚡%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+      { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f0f14'/%3E%3Ctext x='256' y='350' text-anchor='middle' font-size='300'%3E⚡%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+</script>
+
+</body>
+</html>
